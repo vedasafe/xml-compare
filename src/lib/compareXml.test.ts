@@ -30,6 +30,26 @@ describe('compareXml', () => {
     expect(compareXml('<root><?mode a?></root>', '<root><?mode b?></root>')).toMatchObject({ status: 'different' })
   })
 
+  it('compares processing instruction targets', () => {
+    expect(compareXml('<root><?alpha value?></root>', '<root><?beta value?></root>')).toMatchObject({ status: 'different' })
+  })
+
+  it('compares document-level comments', () => {
+    expect(compareXml('<!--before--><root/>', '<!--after--><root/>')).toMatchObject({ status: 'different' })
+  })
+
+  it('preserves whitespace-only leaf text', () => {
+    expect(compareXml('<root> </root>', '<root/>')).toMatchObject({ status: 'different', path: '/root[1]/text()[1]' })
+  })
+
+  it('preserves whitespace when xml:space is preserve', () => {
+    expect(compareXml('<root xml:space="preserve"> </root>', '<root xml:space="preserve"/>')).toMatchObject({ status: 'different', path: '/root[1]/text()[1]' })
+  })
+
+  it('numbers text paths independently of preceding element children', () => {
+    expect(compareXml('<root><item/>left</root>', '<root><item/>right</root>')).toMatchObject({ status: 'different', path: '/root[1]/text()[1]' })
+  })
+
   it('treats CDATA and text as equivalent', () => {
     expect(compareXml('<root><![CDATA[value]]></root>', '<root>value</root>')).toEqual({ status: 'equal' })
   })
