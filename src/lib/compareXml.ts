@@ -8,6 +8,7 @@ type ComparableParent = XMLDocument | Element
 
 const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
 const PARSER_ERROR_NAMESPACE = 'http://www.mozilla.org/newlayout/xml/parsererror.xml'
+const XHTML_NAMESPACE = 'http://www.w3.org/1999/xhtml'
 
 export function compareXml(left: string, right: string): XmlComparisonResult {
   const leftDocument = parse(left)
@@ -22,6 +23,7 @@ export function compareXml(left: string, right: string): XmlComparisonResult {
 function parse(xml: string): XMLDocument | string {
   const document = new DOMParser().parseFromString(xml, 'application/xml')
   const parserError = document.getElementsByTagNameNS(PARSER_ERROR_NAMESPACE, 'parsererror')[0]
+    ?? document.getElementsByTagNameNS(XHTML_NAMESPACE, 'parsererror')[0]
   return parserError ? parserError.textContent ?? 'Invalid XML' : document
 }
 

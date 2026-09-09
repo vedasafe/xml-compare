@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { compareXml } from './compareXml'
 
 describe('compareXml', () => {
@@ -101,6 +101,24 @@ describe('compareXml', () => {
 
   it('reports malformed XML on the right even when the left has a parsererror element', () => {
     expect(compareXml('<root><parsererror>ok</parsererror></root>', '<root>')).toMatchObject({ status: 'invalid', file: 'right' })
+  })
+
+  it('detects Chromium XHTML parser-error documents', () => {
+    const parser = new DOMParser()
+    const leftDocument = parser.parseFromString('<root/>', 'application/xml')
+    const chromiumErrorDocument = parser.parseFromString(
+      '<root><parsererror xmlns="http://www.w3.org/1999/xhtml">Malformed XML</parsererror></root>',
+      'application/xml',
+    )
+    const parseFromString = vi.spyOn(DOMParser.prototype, 'parseFromString')
+      .mockReturnValueOnce(leftDocument)
+      .mockReturnValueOnce(chromiumErrorDocument)
+
+    try {
+      expect(compareXml('<root/>', '<root>')).toEqual({ status: 'invalid', file: 'right', message: 'Malformed XML' })
+    } finally {
+      parseFromString.mockRestore()
+    }
   })
 
   it('reports which document is malformed', () => {
