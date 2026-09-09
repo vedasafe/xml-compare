@@ -1,5 +1,7 @@
+/// <reference types="vite/client" />
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import stylesheetText from './styles.css?raw'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import App from './App'
 
 afterEach(cleanup)
@@ -29,6 +31,48 @@ function selectPair(left = '<root><item/></root>', right = '<root>\n  <item/>\n<
 }
 
 describe('XML comparison workflow', () => {
+  describe('persistent announcements', () => {
+    const stylesheet = document.createElement('style')
+    beforeAll(() => {
+      stylesheet.textContent = stylesheetText
+      document.head.append(stylesheet)
+    })
+    afterAll(() => stylesheet.remove())
+
+    it('keeps the empty result region accessible before comparison and after removal', async () => {
+      render(<App />)
+      const result = screen.getByRole('region', { name: 'Comparison result' })
+      expect(result).toBeEmptyDOMElement()
+      expect(result).toHaveAttribute('aria-live', 'polite')
+      expect(getComputedStyle(result).display).not.toBe('none')
+      selectPair()
+      fireEvent.click(screen.getByRole('button', { name: /compare files/i }))
+      await within(result).findByRole('heading', { name: 'Files match' })
+      expect(screen.getByRole('region', { name: 'Comparison result' })).toBe(result)
+      fireEvent.click(screen.getByRole('button', { name: 'Remove first XML file' }))
+      expect(screen.getByRole('region', { name: 'Comparison result' })).toBe(result)
+      expect(result).toBeEmptyDOMElement()
+      expect(getComputedStyle(result).display).not.toBe('none')
+    })
+
+    it.each(['first', 'second'] as const)('keeps the %s file announcement mounted through selection and removal', side => {
+      render(<App />)
+      const label = `${side === 'first' ? 'First' : 'Second'} XML file`
+      const announcement = screen.getByRole('status', { name: `${label} selection` })
+      expect(announcement).toBeEmptyDOMElement()
+      expect(announcement).toHaveAttribute('aria-live', 'polite')
+      expect(announcement).toHaveAttribute('aria-atomic', 'true')
+      expect(getComputedStyle(announcement).display).not.toBe('none')
+      select(side, xmlFile('<root/>', `${side}.xml`))
+      expect(screen.getByRole('status', { name: `${label} selection` })).toBe(announcement)
+      expect(announcement).toHaveTextContent(`${side}.xml`)
+      fireEvent.click(screen.getByRole('button', { name: `Remove ${side} XML file` }))
+      expect(screen.getByRole('status', { name: `${label} selection` })).toBe(announcement)
+      expect(announcement).toHaveTextContent(`${label} removed.`)
+      expect(announcement).not.toHaveTextContent(`${side}.xml`)
+    })
+  })
+
   it('requires both files, then reports an XML match despite formatting differences', async () => {
     render(<App />)
     const compare = screen.getByRole('button', { name: /compare files/i })

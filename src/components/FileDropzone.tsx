@@ -21,6 +21,7 @@ export function FileDropzone({ label, file, error, onFile, onRemove }: FileDropz
   const inputRef = useRef<HTMLInputElement>(null)
   const dragDepth = useRef(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [removalMessage, setRemovalMessage] = useState('')
   const id = useId()
   const accessibleLabel = label.charAt(0).toLowerCase() + label.slice(1)
 
@@ -49,6 +50,9 @@ export function FileDropzone({ label, file, error, onFile, onRemove }: FileDropz
       }}
     >
       <h2>{label}</h2>
+      <div className="sr-only" role="status" aria-label={`${label} selection`} aria-live="polite" aria-atomic="true">
+        {file ? `${label}: ${file.name}. XML · ${formatSize(file.size)}` : removalMessage}
+      </div>
       <input
         ref={inputRef}
         id={id}
@@ -67,13 +71,13 @@ export function FileDropzone({ label, file, error, onFile, onRemove }: FileDropz
       />
       {file ? (
         <div className="document-panel selected-panel">
-          <div className="file-identity" aria-live="polite">
+          <div className="file-identity">
             <FileIcon className="document-icon" aria-hidden="true" />
             <div className="file-details"><p className="file-name">{file.name}</p><p className="file-size">XML · {formatSize(file.size)}</p></div>
           </div>
           <div className="file-actions">
             <button type="button" className="replace-button" aria-label={`Replace ${accessibleLabel}`} onClick={() => inputRef.current?.click()}><RefreshCw aria-hidden="true" />Replace</button>
-            <button type="button" className="remove-button" aria-label={`Remove ${accessibleLabel}`} onClick={onRemove}><Trash2 aria-hidden="true" />Remove</button>
+            <button type="button" className="remove-button" aria-label={`Remove ${accessibleLabel}`} onClick={() => { setRemovalMessage(`${label} removed.`); onRemove() }}><Trash2 aria-hidden="true" />Remove</button>
           </div>
         </div>
       ) : (
