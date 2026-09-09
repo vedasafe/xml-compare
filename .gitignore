@@ -5,3 +5,4 @@ coverage/
 .npm-cache/
 npm-*.log
 *.tsbuildinfo
+.git-codex-backup/
