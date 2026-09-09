@@ -81,7 +81,7 @@ export function FileDropzone({ label, file, error, onFile, onRemove }: FileDropz
           </div>
         </div>
       ) : (
-        <button type="button" className="document-panel empty-panel" aria-label={`Browse for ${accessibleLabel}`} aria-describedby={error ? `${id}-error` : undefined} onClick={() => inputRef.current?.click()}>
+        <button type="button" className="document-panel empty-panel" aria-label={`Choose XML file for ${accessibleLabel}`} aria-describedby={error ? `${id}-error` : undefined} onClick={() => inputRef.current?.click()}>
           <FileIcon className="document-icon" aria-hidden="true" />
           <span className="empty-title">Drop your XML file here</span>
           <span className="empty-hint">or click to browse</span>

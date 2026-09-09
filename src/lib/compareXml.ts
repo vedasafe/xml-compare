@@ -7,6 +7,7 @@ type ComparableNode = Element | Text | Comment | ProcessingInstruction
 type ComparableParent = XMLDocument | Element
 
 const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
+const PARSER_ERROR_NAMESPACE = 'http://www.mozilla.org/newlayout/xml/parsererror.xml'
 
 export function compareXml(left: string, right: string): XmlComparisonResult {
   const leftDocument = parse(left)
@@ -20,7 +21,7 @@ export function compareXml(left: string, right: string): XmlComparisonResult {
 
 function parse(xml: string): XMLDocument | string {
   const document = new DOMParser().parseFromString(xml, 'application/xml')
-  const parserError = document.querySelector('parsererror')
+  const parserError = document.getElementsByTagNameNS(PARSER_ERROR_NAMESPACE, 'parsererror')[0]
   return parserError ? parserError.textContent ?? 'Invalid XML' : document
 }
 
@@ -57,7 +58,7 @@ function compareNode(left: ComparableNode, right: ComparableNode, path: string):
   const leftElement = left as Element
   const rightElement = right as Element
   if (leftElement.namespaceURI !== rightElement.namespaceURI || leftElement.localName !== rightElement.localName) {
-    return difference(path, 'Element names differ', nodeName(leftElement), nodeName(rightElement))
+    return difference(path, 'Element names differ', expandedName(leftElement), expandedName(rightElement))
   }
 
   const attributeResult = compareAttributes(leftElement, rightElement, path)
@@ -80,7 +81,7 @@ function compareChildren(leftParent: ComparableParent, rightParent: ComparablePa
       child,
       leftChild,
       rightChild,
-      leftChildren,
+      leftChild ? leftChildren : rightChildren,
       index,
       child.nodeType === Node.TEXT_NODE ? ++textIndex : textIndex,
     )
@@ -127,7 +128,7 @@ function compareAttributes(left: Element, right: Element, path: string): XmlComp
     const leftAttribute = leftAttributes[index]
     const rightAttribute = rightAttributes[index]
     if (leftAttribute.namespaceURI !== rightAttribute.namespaceURI || leftAttribute.localName !== rightAttribute.localName) {
-      return difference(path, 'Attribute names differ', leftAttribute.name, rightAttribute.name)
+      return difference(path, 'Attribute names differ', expandedName(leftAttribute), expandedName(rightAttribute))
     }
     if (leftAttribute.value !== rightAttribute.value) {
       return difference(path, `Attribute ${leftAttribute.name} values differ`, leftAttribute.value, rightAttribute.value)
@@ -142,17 +143,24 @@ function compareAttribute(left: Attr, right: Attr): number {
 }
 
 function childrenOf(parent: ComparableParent): ComparableNode[] {
-  const hasElementChild = Array.from(parent.childNodes).some((child) => child.nodeType === Node.ELEMENT_NODE)
-  return Array.from(parent.childNodes).flatMap((child): ComparableNode[] => {
+  const children: ComparableNode[] = []
+  const document = parent.nodeType === Node.DOCUMENT_NODE ? parent as XMLDocument : parent.ownerDocument!
+  for (const child of Array.from(parent.childNodes)) {
     if (child.nodeType === Node.CDATA_SECTION_NODE || child.nodeType === Node.TEXT_NODE) {
-      if (/^\s*$/.test(child.nodeValue ?? '') && shouldIgnoreWhitespace(parent, hasElementChild)) return []
-      const document = parent.nodeType === Node.DOCUMENT_NODE ? parent as XMLDocument : parent.ownerDocument!
-      return [document.createTextNode(child.nodeValue ?? '')]
+      const previous = children[children.length - 1]
+      if (previous?.nodeType === Node.TEXT_NODE) {
+        (previous as Text).appendData(child.nodeValue ?? '')
+      } else {
+        children.push(document.createTextNode(child.nodeValue ?? ''))
+      }
+    } else if (child.nodeType === Node.ELEMENT_NODE || child.nodeType === Node.COMMENT_NODE || child.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
+      children.push(child as ComparableNode)
     }
-    return child.nodeType === Node.ELEMENT_NODE || child.nodeType === Node.COMMENT_NODE || child.nodeType === Node.PROCESSING_INSTRUCTION_NODE
-      ? [child as ComparableNode]
-      : []
-  })
+  }
+  // Coalesce text/CDATA first so whitespace adjacent to meaningful text survives.
+  const hasElementChild = children.some(child => child.nodeType === Node.ELEMENT_NODE)
+  const ignoreWhitespace = shouldIgnoreWhitespace(parent, hasElementChild)
+  return children.filter(child => !(ignoreWhitespace && child.nodeType === Node.TEXT_NODE && /^[\t\n\r ]*$/.test(child.nodeValue ?? '')))
 }
 
 function shouldIgnoreWhitespace(parent: ComparableParent, hasElementChild: boolean): boolean {
@@ -177,7 +185,15 @@ function nodeName(node: Node): string {
   return node.nodeName
 }
 
+function expandedName(node: Element | Attr): string {
+  return node.namespaceURI ? `{${node.namespaceURI}}${node.localName}` : node.localName
+}
+
 function nodeValue(node: Node): string {
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const name = expandedName(node as Element)
+    return node.hasChildNodes() ? `<${name}>…</${name}>` : `<${name}/>`
+  }
   return node.nodeValue ?? ''
 }
 

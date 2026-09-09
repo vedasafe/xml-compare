@@ -31,6 +31,12 @@ function selectPair(left = '<root><item/></root>', right = '<root>\n  <item/>\n<
 }
 
 describe('XML comparison workflow', () => {
+  it.each(['first', 'second'] as const)('includes the visible choose label and %s side in the browse button name', side => {
+    render(<App />)
+    const button = screen.getByRole('button', { name: `Choose XML file for ${side} XML file` })
+    expect(within(button).getByText('Choose XML file')).toBeVisible()
+  })
+
   describe('persistent announcements', () => {
     const stylesheet = document.createElement('style')
     beforeAll(() => {

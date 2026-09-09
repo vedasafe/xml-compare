@@ -19,7 +19,34 @@ describe('compareXml', () => {
   })
 
   it('compares namespace declarations', () => {
-    expect(compareXml('<x:root xmlns:x="urn:a"/>', '<x:root xmlns:x="urn:b"/>')).toMatchObject({ status: 'different' })
+    expect(compareXml('<x:root xmlns:x="urn:a"/>', '<x:root xmlns:x="urn:b"/>')).toMatchObject({
+      status: 'different', leftValue: '{urn:a}root', rightValue: '{urn:b}root',
+    })
+  })
+
+  it('shows expanded attribute names when namespace URIs differ', () => {
+    expect(compareXml('<root xmlns:x="a" x:id="1"/>', '<root xmlns:x="b" x:id="1"/>')).toMatchObject({
+      status: 'different', reason: 'Attribute names differ', leftValue: '{a}id', rightValue: '{b}id',
+    })
+  })
+
+  it.each([
+    ['<root/>', '<root><a/></root>', '/root[1]/a[1]', '', '<a/>'],
+    ['<root><a/></root>', '<root/>', '/root[1]/a[1]', '<a/>', ''],
+    ['<root><a/></root>', '<root><a/><a/></root>', '/root[1]/a[2]', '', '<a/>'],
+    ['<root><a/><a/></root>', '<root><a/></root>', '/root[1]/a[2]', '<a/>', ''],
+  ])('reports missing or extra elements: %s versus %s', (left, right, path, leftValue, rightValue) => {
+    expect(compareXml(left, right)).toMatchObject({ status: 'different', path, leftValue, rightValue })
+  })
+
+  it('shows a concise namespace-aware value for an extra element', () => {
+    expect(compareXml('<root/>', '<root><a xmlns="urn:a"><nested/></a></root>')).toMatchObject({
+      status: 'different', path: '/root[1]/a[1]', leftValue: '', rightValue: '<{urn:a}a>…</{urn:a}a>',
+    })
+  })
+
+  it.each(['&#160;', '&#8195;'])('preserves non-XML whitespace %s between elements', whitespace => {
+    expect(compareXml(`<root><a/>${whitespace}<b/></root>`, '<root><a/><b/></root>')).toMatchObject({ status: 'different' })
   })
 
   it('compares comments', () => {
@@ -52,6 +79,28 @@ describe('compareXml', () => {
 
   it('treats CDATA and text as equivalent', () => {
     expect(compareXml('<root><![CDATA[value]]></root>', '<root>value</root>')).toEqual({ status: 'equal' })
+  })
+
+  it.each([
+    ['<root>A<![CDATA[B]]>C</root>', '<root>ABC</root>'],
+    ['<root>ABC</root>', '<root><![CDATA[A]]>B<![CDATA[C]]></root>'],
+    ['<root><a/> <![CDATA[B]]> <b/></root>', '<root><a/> B <b/></root>'],
+    ['<root><a/><![CDATA[ \t\n]]><b/></root>', '<root><a/><b/></root>'],
+    ['<root xml:space="preserve"><a/> <![CDATA[B]]> </root>', '<root xml:space="preserve"><a/> B </root>'],
+  ])('coalesces text and CDATA before filtering formatting whitespace: %s', (left, right) => {
+    expect(compareXml(left, right)).toEqual({ status: 'equal' })
+  })
+
+  it.each([
+    '<root><parsererror>ok</parsererror></root>',
+    '<parsererror>ok</parsererror>',
+    '<root xmlns:p="urn:user"><p:parsererror>ok</p:parsererror></root>',
+  ])('accepts user-defined parsererror elements: %s', xml => {
+    expect(compareXml(xml, xml)).toEqual({ status: 'equal' })
+  })
+
+  it('reports malformed XML on the right even when the left has a parsererror element', () => {
+    expect(compareXml('<root><parsererror>ok</parsererror></root>', '<root>')).toMatchObject({ status: 'invalid', file: 'right' })
   })
 
   it('reports which document is malformed', () => {
