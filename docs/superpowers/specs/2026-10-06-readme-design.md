@@ -61,4 +61,3 @@ Before completion:
 - Confirm every documented npm command exists in `package.json`.
 - Run the test suite and production build.
 - Review the rendered Markdown structure for heading order and readability.
-
