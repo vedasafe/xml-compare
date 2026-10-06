@@ -1,0 +1,173 @@
+# XML Compare
+
+XML Compare is a privacy-focused web application for checking whether two XML files contain the same XML content. It ignores formatting-only whitespace and attribute order while preserving meaningful XML differences.
+
+- **Live application:** [vedasafe.github.io/xml-compare](https://vedasafe.github.io/xml-compare/)
+- **Source code:** [github.com/vedasafe/xml-compare](https://github.com/vedasafe/xml-compare)
+
+## Features
+
+- Compare two XML files directly in your browser.
+- Ignore indentation, line breaks, and whitespace used only to format elements.
+- Ignore attribute ordering.
+- Detect meaningful differences in elements, namespaces, attributes, text, comments, processing instructions, and child order.
+- Show the first mismatch with an XPath-like location, reason, and values from both files.
+- Identify malformed XML and show which file could not be parsed.
+- Select files by browsing or drag-and-drop, then replace or remove either file.
+- Keep files private: comparison happens locally, and the application does not upload them to a server.
+
+## Using the application
+
+1. Open the [live application](https://vedasafe.github.io/xml-compare/).
+2. Choose or drag an XML file into **First XML file**.
+3. Choose or drag another XML file into **Second XML file**.
+4. Select **Compare files**.
+5. Review the result:
+   - **Files match** means both documents contain equivalent XML content under the rules below.
+   - **Files are different** shows the first detected difference, its location, and the values from each file.
+   - **XML couldn't be read** identifies malformed XML and the affected file.
+
+A file-read failure appears next to the affected file selection.
+
+Selecting or replacing either file clears the previous result so that the new pair can be compared.
+
+## Comparison rules
+
+The application parses both files as XML and recursively compares their document trees.
+
+### Differences that are ignored
+
+- Indentation and line breaks that create whitespace-only text nodes between elements.
+- Attribute order.
+- XML formatting style, including equivalent empty-element forms such as `<item />` and `<item></item>`.
+
+### Content that is compared
+
+- Element names and namespace URIs.
+- Attribute names, namespace URIs, and values.
+- Meaningful text content, including spaces within text.
+- Child element order and number of children.
+- Comments.
+- Processing-instruction targets and values.
+- Whitespace protected by `xml:space="preserve"`.
+
+For example, `<name>A B</name>` is different from `<name>AB</name>`, even though indentation around elements is ignored.
+
+The app stops at the first detected mismatch and reports an XPath-like location such as `/catalog[1]/book[2]/title[1]/text()[1]`.
+
+## Technology stack
+
+- [React](https://react.dev/) 18
+- [TypeScript](https://www.typescriptlang.org/)
+- [Vite](https://vite.dev/)
+- [Vitest](https://vitest.dev/)
+- [Testing Library](https://testing-library.com/)
+- [Lucide React](https://lucide.dev/)
+- [GitHub Actions](https://github.com/features/actions) and [GitHub Pages](https://pages.github.com/)
+
+## Local development
+
+### Prerequisites
+
+- A current Node.js LTS release
+- npm, included with Node.js
+- Git
+
+### Install and start
+
+```bash
+git clone https://github.com/vedasafe/xml-compare.git
+cd xml-compare
+npm ci
+npm run dev
+```
+
+Vite prints the local development URL in the terminal, normally `http://localhost:5173`.
+
+## Testing
+
+Run the complete test suite once:
+
+```bash
+npm run test:run
+```
+
+Run tests in watch mode while developing:
+
+```bash
+npm test
+```
+
+Tests cover the comparison engine and user interface, including formatting-only differences, attribute ordering, namespaces, meaningful text, comments, processing instructions, invalid XML, file selection, and result rendering.
+
+## Production build
+
+Create an optimized production build:
+
+```bash
+npm run build
+```
+
+The generated static files are written to `dist/`. The Vite base path is `/xml-compare/` for GitHub Pages hosting.
+
+## Project structure
+
+```text
+xml-compare/
+├── .github/workflows/deploy.yml  # Tests, builds, and deploys GitHub Pages
+├── src/
+│   ├── components/
+│   │   ├── ComparisonResult.tsx  # Match, difference, and invalid-XML results
+│   │   └── FileDropzone.tsx      # File browsing, drag-and-drop, replace, and remove
+│   ├── lib/
+│   │   ├── compareXml.ts         # XML parsing and structural comparison engine
+│   │   └── compareXml.test.ts    # Comparison-engine tests
+│   ├── test/setup.ts             # Testing Library matchers and test setup
+│   ├── App.test.tsx              # Application interaction tests
+│   ├── App.tsx                   # Application state and comparison workflow
+│   ├── main.tsx                  # React entry point
+│   └── styles.css                # Responsive application styles
+├── LICENSE                       # MIT License
+├── package.json                  # Dependencies and npm scripts
+└── vite.config.ts                # Vite, Vitest, and GitHub Pages configuration
+```
+
+## Deployment
+
+The workflow in `.github/workflows/deploy.yml` deploys the application to GitHub Pages whenever a commit is pushed to `main`. It can also be started manually from the repository's **Actions** tab.
+
+The workflow:
+
+1. Installs dependencies with `npm ci`.
+2. Runs the test suite with `npm run test:run`.
+3. Creates the production build with `npm run build`.
+4. Uploads `dist/` as the GitHub Pages artifact.
+5. Deploys the artifact to the `github-pages` environment.
+
+The repository's Pages source must be configured as **GitHub Actions**.
+
+## Contributing
+
+Contributions are welcome.
+
+1. Fork the repository and create a focused branch.
+2. Install dependencies with `npm ci`.
+3. Make the change and add or update tests when behavior changes.
+4. Run `npm run test:run` and `npm run build`.
+5. Open a pull request explaining the change and how it was verified.
+
+Keep comparison behavior in `src/lib/compareXml.ts` independent from React so it remains straightforward to test. Preserve accessible labels, keyboard behavior, live result announcements, and responsive layouts when changing the interface.
+
+## Current scope
+
+XML Compare intentionally does not:
+
+- Upload or store files.
+- Edit XML documents.
+- Validate XML against an XSD schema.
+- Keep a comparison history.
+- Display a complete side-by-side diff beyond the first mismatch.
+
+## License
+
+This project is available under the [MIT License](LICENSE).
